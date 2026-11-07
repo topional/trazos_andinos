@@ -1,1 +1,0 @@
-# trazos_andinos
