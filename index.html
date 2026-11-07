@@ -1,0 +1,75 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Trazos Andinos</title>
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<main class="app">
+  <header class="topbar">
+    <div>
+      <h1>Trazos Andinos</h1>
+      <p>Recolector simple de dibujos para llama, sol, montaña, chakana y cuy.</p>
+    </div>
+  </header>
+
+  <section class="layout">
+    <aside class="panel panel-left">
+      <div class="block">
+        <label for="category">Categoría</label>
+        <select id="category">
+          <option value="llama">Llama</option>
+          <option value="sol">Sol</option>
+          <option value="montana">Montaña</option>
+          <option value="chakana">Chakana</option>
+          <option value="cuy">Cuy</option>
+        </select>
+      </div>
+
+      <div class="block counter" id="counts" aria-live="polite">
+        <div class="counter-total">
+          <span>Total de dibujos guardados</span>
+          <strong id="total-count">0</strong>
+        </div>
+        <div class="counter-list" aria-label="Dibujos por categoría">
+          <div class="counter-item" data-category="llama"><span>Llama</span><strong id="count-llama">0</strong></div>
+          <div class="counter-item" data-category="sol"><span>Sol</span><strong id="count-sol">0</strong></div>
+          <div class="counter-item" data-category="montana"><span>Montaña</span><strong id="count-montana">0</strong></div>
+          <div class="counter-item" data-category="chakana"><span>Chakana</span><strong id="count-chakana">0</strong></div>
+          <div class="counter-item" data-category="cuy"><span>Cuy</span><strong id="count-cuy">0</strong></div>
+        </div>
+      </div>
+
+      <div class="block actions-vertical">
+        <button type="button" id="undo">Deshacer</button>
+        <button type="button" id="clear">Borrar</button>
+        <button type="button" id="save" class="main-action">Guardar dibujo</button>
+      </div>
+
+      <div class="block actions-vertical">
+        <button id="export" type="button" class="export-action">Exportar dataset ZIP</button>
+        <button type="button" id="deleteAll">Borrar dibujos guardados</button>
+      </div>
+
+      <div class="block info-block">
+        <p>Se guarda cada dibujo como PNG de 256 × 256 píxeles.</p>
+        <p>El ZIP incluye carpetas por categoría y un archivo <strong>metadata.csv</strong>.</p>
+      </div>
+
+      <div id="message" class="message" role="status" aria-live="polite"></div>
+    </aside>
+
+    <section class="panel panel-canvas">
+      <div class="canvas-header">
+        <span>Dibujo</span>
+        <span class="canvas-note">Usa mouse o dedo</span>
+      </div>
+      <canvas id="paint" width="512" height="512" aria-label="Lienzo para dibujar con mouse o dedo"></canvas>
+    </section>
+  </section>
+</main>
+<script src="script.js" defer></script>
+</body>
+</html>
