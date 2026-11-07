@@ -76,7 +76,7 @@ input[type="range"] {
 }
 button:disabled {
   opacity: .55;
-  cursor: wait;
+  cursor: not-allowed;
 }
 /* Jerarquía visual: guardar es la acción principal, exportar la secundaria. */
 .main-action {
@@ -200,3 +200,35 @@ canvas {
     padding: 14px;
   }
 }
+
+.section-title {
+  margin: 0 0 12px;
+  font-size: 17px;
+}
+.section-title:not(:first-child) {
+  padding-top: 16px;
+  border-top: 1px solid #c2c2c2;
+}
+.help-text {
+  margin: 0 0 12px;
+  color: #555;
+  font-size: 14px;
+}
+.saved-actions {
+  padding: 12px;
+  border: 1px solid #c2c2c2;
+  border-radius: 6px;
+}
+.saved-actions summary {
+  cursor: pointer;
+  font-weight: bold;
+}
+.saved-actions[open] summary { margin-bottom: 12px; }
+.danger-action { color: #962828; border-color: #b57878; }
+.canvas-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 14px;
+}
+.canvas-actions button { flex: 1 1 160px; }

@@ -4,7 +4,7 @@
   const $ = id => document.getElementById(id);
   const canvas = $('paint'), ctx = canvas.getContext('2d');
   const strokeWidth = $('stroke-width');
-  let strokes = [], active = null, items = [], db = null, volatile = false, fallback = [], busy = false;
+  let strokes = [], active = null, items = [], db = null, volatile = false, fallback = [], busy = true;
   const message = text => { $('message').textContent = text; };
   const timestamp = () => new Date().toISOString().replace(/[-:.]/g, '').replace('Z', 'Z');
   const uniqueId = () => (typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function')
@@ -52,7 +52,7 @@
   $('undo').addEventListener('click', () => { strokes.pop(); active = null; draw(); });
   $('clear').addEventListener('click', () => { strokes = []; active = null; draw(); message(''); });
   $('category').addEventListener('change', () => {
-    strokes = []; active = null; draw(); message(''); highlightSelectedCategory();
+    strokes = []; active = null; draw(); message(''); highlightSelectedCategory(); updateActions();
   });
 
   function database() {
@@ -76,6 +76,25 @@
       row.classList.toggle('is-selected', row.dataset.category === $('category').value);
     });
   }
+  const categoryName = category => ({ llama: 'Llama', sol: 'Sol', montana: 'Montaña', chakana: 'Chakana', cuy: 'Cuy' })[category] || category;
+  function updateActions() {
+    const category = $('category').value;
+    $('save').disabled = busy;
+    $('export').disabled = busy || !items.length;
+    $('deleteLast').disabled = busy || !items.length;
+    $('deleteAll').disabled = busy || !items.length;
+    $('deleteCategory').disabled = busy || !items.some(item => item.category === category);
+    $('deleteCategory').textContent = 'Borrar guardados de ' + categoryName(category);
+  }
+  function setBusy(value) { busy = value; updateActions(); }
+  function writeDrawings(change) {
+    return new Promise((resolve, reject) => {
+      const tx = db.transaction('drawings', 'readwrite');
+      tx.oncomplete = () => resolve();
+      tx.onerror = tx.onabort = () => reject(tx.error || new Error('No se pudieron actualizar los dibujos'));
+      change(tx.objectStore('drawings'));
+    });
+  }
   async function reload() {
     items = volatile ? [...fallback] : await request(db.transaction('drawings', 'readonly').objectStore('drawings').getAll());
     $('total-count').textContent = items.length;
@@ -84,11 +103,11 @@
       if (Object.hasOwn(counts, item.category)) counts[item.category]++;
     }
     for (const cat of CATS) $('count-' + cat).textContent = counts[cat];
-    highlightSelectedCategory();
+    highlightSelectedCategory(); updateActions();
   }
   async function store(item) {
     if (volatile) { fallback.push(item); return; }
-    await request(db.transaction('drawings', 'readwrite').objectStore('drawings').put(item));
+    await writeDrawings(store => store.put(item));
   }
   function pngBlob() {
     const output = document.createElement('canvas'); output.width = output.height = 256;
@@ -100,7 +119,7 @@
   $('save').addEventListener('click', async () => {
     if (busy) return;
     if (!strokes.length) return message('Primero realiza un dibujo.');
-    busy = true; $('save').disabled = true;
+    setBusy(true);
     try {
       const category = $('category').value, id = uniqueId(), now = new Date().toISOString();
       const png = await pngBlob();
@@ -108,7 +127,7 @@
       await store(item); strokes = []; active = null; draw(); await reload();
       message('Dibujo guardado. Puedes crear otro.');
     } catch (err) { console.error(err); message('Error al guardar: ' + err.message); }
-    finally { busy = false; $('save').disabled = false; }
+    finally { setBusy(false); }
   });
 
   // ZIP sin librerías: imágenes PNG y archivo de etiquetas CSV.
@@ -146,7 +165,7 @@
   $('export').addEventListener('click', async () => {
     if (busy) return;
     if (!items.length) return message('Guarda al menos un dibujo antes de exportar.');
-    busy=true; $('export').disabled=true; message('Preparando ZIP...');
+    setBusy(true); message('Preparando ZIP...');
     try {
       const files=CATS.map(name=>({name:name+'/'})), rows=['categoria,archivo,fecha_utc,ancho,alto'];
       for (const item of items) {
@@ -160,22 +179,41 @@
       setTimeout(()=>URL.revokeObjectURL(url),60000);
       message(`ZIP exportado con ${items.length} dibujos.`);
     } catch (err) { console.error(err);message('Error al exportar: '+err.message); }
-    finally { busy=false;$('export').disabled=false; }
+    finally { setBusy(false); }
   });
-  $('deleteAll').addEventListener('click', async () => {
-    if (!items.length) return;
-    if (!confirm('¿Borrar todos los dibujos guardados? Exporta antes de continuar.')) return;
+  async function deleteDrawings(targets, question, success) {
+    if (busy || !targets.length || !confirm(question)) return;
+    setBusy(true);
     try {
-      if (volatile) fallback=[];
-      else await request(db.transaction('drawings','readwrite').objectStore('drawings').clear());
-      await reload();message('Se borraron todos los dibujos.');
-    } catch (err) {message('No se pudo borrar: '+err.message);}
+      const ids = new Set(targets.map(item => item.id));
+      if (volatile) fallback = fallback.filter(item => !ids.has(item.id));
+      else await writeDrawings(store => { for (const id of ids) store.delete(id); });
+      await reload(); message(success);
+    } catch (err) { message('No se pudo borrar: ' + err.message); }
+    finally { setBusy(false); }
+  }
+  $('deleteLast').addEventListener('click', () => {
+    const latest = items.reduce((last, item) => !last || item.created_at >= last.created_at ? item : last, null);
+    if (!latest) return;
+    return deleteDrawings([latest],
+      `¿Borrar el último dibujo guardado (${categoryName(latest.category)})?`,
+      `Se borró el último dibujo guardado (${categoryName(latest.category)}).`);
   });
+  $('deleteCategory').addEventListener('click', () => {
+    const category = $('category').value, name = categoryName(category);
+    const targets = items.filter(item => item.category === category);
+    return deleteDrawings(targets,
+      `¿Borrar los ${targets.length} dibujos guardados de ${name}? Las otras categorías se conservarán.`,
+      `Se borraron ${targets.length} dibujos guardados de ${name}.`);
+  });
+  $('deleteAll').addEventListener('click', () => deleteDrawings(items,
+    `¿Borrar los ${items.length} dibujos guardados de todas las categorías? Exporta antes de continuar.`,
+    'Se borraron todos los dibujos guardados.'));
   async function init() {
     draw();
     try { db=await database(); }
     catch (err) { console.warn(err); volatile=true;message('Aviso: este navegador no conserva los dibujos; exporta antes de cerrar.'); }
-    await reload();
+    await reload(); setBusy(false);
   }
   init();
 })();

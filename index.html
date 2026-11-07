@@ -17,6 +17,7 @@
 
   <section class="layout">
     <aside class="panel panel-left">
+      <h2 class="section-title">Herramientas de dibujo</h2>
       <div class="block">
         <label for="category">Categoría</label>
         <select id="category">
@@ -33,6 +34,7 @@
         <input id="stroke-width" type="range" min="2" max="40" step="1" value="12" aria-valuetext="12 píxeles">
       </div>
 
+      <h2 class="section-title">Dataset guardado</h2>
       <div class="block counter" id="counts" aria-live="polite">
         <div class="counter-total">
           <span>Total de dibujos guardados</span>
@@ -48,15 +50,18 @@
       </div>
 
       <div class="block actions-vertical">
-        <button type="button" id="undo">Deshacer</button>
-        <button type="button" id="clear">Borrar</button>
-        <button type="button" id="save" class="main-action">Guardar dibujo</button>
+        <button id="export" type="button" class="export-action" disabled>Exportar dataset ZIP</button>
       </div>
 
-      <div class="block actions-vertical">
-        <button id="export" type="button" class="export-action">Exportar dataset ZIP</button>
-        <button type="button" id="deleteAll">Borrar dibujos guardados</button>
-      </div>
+      <details class="block saved-actions">
+        <summary>Eliminar dibujos guardados</summary>
+        <p class="help-text">Estas acciones eliminan imágenes del dataset. Puedes exportarlo antes de borrar.</p>
+        <div class="actions-vertical">
+          <button type="button" id="deleteLast" disabled>Borrar último dibujo guardado</button>
+          <button type="button" id="deleteCategory" disabled>Borrar guardados de Llama</button>
+          <button type="button" id="deleteAll" class="danger-action" disabled>Borrar todos los guardados</button>
+        </div>
+      </details>
 
       <div class="block info-block">
         <p>Se guarda cada dibujo como PNG de 256 × 256 píxeles.</p>
@@ -71,7 +76,13 @@
         <span>Dibujo</span>
         <span class="canvas-note">Usa mouse o dedo</span>
       </div>
+      <p class="help-text">Elige una categoría y un grosor, dibuja y guarda el resultado.</p>
       <canvas id="paint" width="512" height="512" aria-label="Lienzo para dibujar con mouse o dedo"></canvas>
+      <div class="canvas-actions">
+        <button type="button" id="undo">Deshacer último trazo</button>
+        <button type="button" id="clear">Borrar lienzo</button>
+        <button type="button" id="save" class="main-action" disabled>Guardar dibujo</button>
+      </div>
     </section>
   </section>
 </main>
