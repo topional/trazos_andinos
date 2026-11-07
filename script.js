@@ -3,6 +3,7 @@
   const CATS = ['llama', 'sol', 'montana', 'chakana', 'cuy'];
   const $ = id => document.getElementById(id);
   const canvas = $('paint'), ctx = canvas.getContext('2d');
+  const strokeWidth = $('stroke-width');
   let strokes = [], active = null, items = [], db = null, volatile = false, fallback = [], busy = false;
   const message = text => { $('message').textContent = text; };
   const timestamp = () => new Date().toISOString().replace(/[-:.]/g, '').replace('Z', 'Z');
@@ -12,18 +13,23 @@
   function draw() {
     ctx.fillStyle = 'white'; ctx.fillRect(0, 0, 512, 512);
     ctx.strokeStyle = '#111'; ctx.fillStyle = '#111';
-    ctx.lineCap = 'round'; ctx.lineJoin = 'round'; ctx.lineWidth = 12;
-    for (const points of strokes) {
+    ctx.lineCap = 'round'; ctx.lineJoin = 'round';
+    for (const { points, width } of strokes) {
       if (!points.length) continue;
+      ctx.lineWidth = width;
       ctx.beginPath(); ctx.moveTo(points[0].x, points[0].y);
       if (points.length === 1) {
-        ctx.arc(points[0].x, points[0].y, 6, 0, Math.PI * 2); ctx.fill();
+        ctx.arc(points[0].x, points[0].y, width / 2, 0, Math.PI * 2); ctx.fill();
       } else {
         for (let i = 1; i < points.length; i++) ctx.lineTo(points[i].x, points[i].y);
         ctx.stroke();
       }
     }
   }
+  strokeWidth.addEventListener('input', () => {
+    $('stroke-width-value').textContent = strokeWidth.value + ' px';
+    strokeWidth.setAttribute('aria-valuetext', strokeWidth.value + ' píxeles');
+  });
   function point(e) {
     const r = canvas.getBoundingClientRect();
     return { x: Math.max(0, Math.min(512, (e.clientX-r.left)*512/r.width)),
@@ -32,7 +38,9 @@
   canvas.addEventListener('pointerdown', e => {
     if (e.pointerType === 'mouse' && e.button !== 0) return;
     e.preventDefault(); canvas.setPointerCapture(e.pointerId);
-    active = [point(e)]; strokes.push(active); draw(); message('');
+    active = [point(e)];
+    strokes.push({ points: active, width: Number(strokeWidth.value) });
+    draw(); message('');
   });
   canvas.addEventListener('pointermove', e => {
     if (!active) return;
