@@ -4,23 +4,12 @@
   const $ = id => document.getElementById(id);
   const canvas = $('paint'), ctx = canvas.getContext('2d');
   const strokeWidth = $('stroke-width');
-  let undoHistory = [], redoHistory = [];
-  let galleryPage = 0, galleryUrls = [];
-  const GALLERY_PAGE_SIZE = 12;
   let strokes = [], active = null, items = [], db = null, volatile = false, fallback = [], busy = true;
   const message = text => { $('message').textContent = text; };
   const timestamp = () => new Date().toISOString().replace(/[-:.]/g, '').replace('Z', 'Z');
   const uniqueId = () => (typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function')
     ? crypto.randomUUID() : Date.now().toString(36) + '_' + Math.random().toString(36).slice(2);
 
-  function updateHistoryActions() {
-    $('undo').disabled = busy || !undoHistory.length;
-    $('redo').disabled = busy || !redoHistory.length;
-    $('clear').disabled = busy || !strokes.length;
-  }
-  function resetDrawing() {
-    strokes = []; undoHistory = []; redoHistory = []; active = null; draw();
-  }
   function draw() {
     ctx.fillStyle = 'white'; ctx.fillRect(0, 0, 512, 512);
     ctx.strokeStyle = '#111'; ctx.fillStyle = '#111';
@@ -36,7 +25,6 @@
         ctx.stroke();
       }
     }
-    updateHistoryActions();
   }
   strokeWidth.addEventListener('input', () => {
     $('stroke-width-value').textContent = strokeWidth.value + ' px';
@@ -48,10 +36,8 @@
              y: Math.max(0, Math.min(512, (e.clientY-r.top)*512/r.height)) };
   }
   canvas.addEventListener('pointerdown', e => {
-    if (busy || active) return;
     if (e.pointerType === 'mouse' && e.button !== 0) return;
     e.preventDefault(); canvas.setPointerCapture(e.pointerId);
-    undoHistory.push(strokes.slice()); redoHistory = [];
     active = [point(e)];
     strokes.push({ points: active, width: Number(strokeWidth.value) });
     draw(); message('');
@@ -63,21 +49,10 @@
   });
   function end() { active = null; }
   ['pointerup', 'pointercancel', 'lostpointercapture'].forEach(name => canvas.addEventListener(name, end));
-  $('undo').addEventListener('click', () => {
-    if (busy || !undoHistory.length) return;
-    active = null; redoHistory.push(strokes.slice()); strokes = undoHistory.pop(); draw();
-  });
-  $('redo').addEventListener('click', () => {
-    if (busy || !redoHistory.length) return;
-    active = null; undoHistory.push(strokes.slice()); strokes = redoHistory.pop(); draw();
-  });
-  $('clear').addEventListener('click', () => {
-    if (busy || !strokes.length) return;
-    undoHistory.push(strokes.slice()); redoHistory = [];
-    strokes = []; active = null; draw(); message('');
-  });
+  $('undo').addEventListener('click', () => { strokes.pop(); active = null; draw(); });
+  $('clear').addEventListener('click', () => { strokes = []; active = null; draw(); message(''); });
   $('category').addEventListener('change', () => {
-    resetDrawing(); message(''); highlightSelectedCategory(); updateActions();
+    strokes = []; active = null; draw(); message(''); highlightSelectedCategory(); updateActions();
   });
 
   function database() {
@@ -105,9 +80,6 @@
   function updateActions() {
     const category = $('category').value;
     $('save').disabled = busy;
-    $('category').disabled = busy;
-    updateHistoryActions();
-    document.querySelectorAll('.gallery-delete').forEach(button => { button.disabled = busy; });
     $('export').disabled = busy || !items.length;
     $('deleteLast').disabled = busy || !items.length;
     $('deleteAll').disabled = busy || !items.length;
@@ -131,7 +103,7 @@
       if (Object.hasOwn(counts, item.category)) counts[item.category]++;
     }
     for (const cat of CATS) $('count-' + cat).textContent = counts[cat];
-    highlightSelectedCategory(); renderGallery(); updateActions();
+    highlightSelectedCategory(); updateActions();
   }
   async function store(item) {
     if (volatile) { fallback.push(item); return; }
@@ -152,7 +124,7 @@
       const category = $('category').value, id = uniqueId(), now = new Date().toISOString();
       const png = await pngBlob();
       const item = { id, category, created_at: now, filename: `${category}_${timestamp()}_${id.slice(-12).replace(/[^a-z0-9]/gi, '')}.png`, width: 256, height: 256, png };
-      await store(item); resetDrawing(); await reload();
+      await store(item); strokes = []; active = null; draw(); await reload();
       message('Dibujo guardado. Puedes crear otro.');
     } catch (err) { console.error(err); message('Error al guardar: ' + err.message); }
     finally { setBusy(false); }
@@ -237,47 +209,6 @@
   $('deleteAll').addEventListener('click', () => deleteDrawings(items,
     `¿Borrar los ${items.length} dibujos guardados de todas las categorías? Exporta antes de continuar.`,
     'Se borraron todos los dibujos guardados.'));
-  function renderGallery() {
-    galleryUrls.forEach(url => URL.revokeObjectURL(url)); galleryUrls = [];
-    const category = $('gallery-category').value;
-    const filtered = items.filter(item => category === 'all' || item.category === category)
-      .sort((a, b) => b.created_at.localeCompare(a.created_at));
-    const pages = Math.max(1, Math.ceil(filtered.length / GALLERY_PAGE_SIZE));
-    galleryPage = Math.min(galleryPage, pages - 1);
-    const grid = $('gallery-grid'); grid.replaceChildren();
-    $('gallery-status').textContent = filtered.length
-      ? `${filtered.length} dibujos · Más recientes primero`
-      : category === 'all' ? 'Todavía no hay dibujos guardados.' : `No hay dibujos guardados de ${categoryName(category)}.`;
-    const start = galleryPage * GALLERY_PAGE_SIZE;
-    filtered.slice(start, start + GALLERY_PAGE_SIZE).forEach((item, index) => {
-      const card = document.createElement('article'); card.className = 'gallery-card';
-      const image = document.createElement('img');
-      image.src = URL.createObjectURL(item.png); galleryUrls.push(image.src);
-      image.alt = `Dibujo de ${categoryName(item.category)}`;
-      image.width = image.height = 256; image.loading = 'lazy';
-      const name = document.createElement('h3');
-      name.textContent = `${categoryName(item.category)} · ${start + index + 1}`;
-      const date = document.createElement('time'); date.dateTime = item.created_at;
-      date.textContent = new Date(item.created_at).toLocaleString('es-PE');
-      const remove = document.createElement('button'); remove.type = 'button';
-      remove.className = 'gallery-delete danger-action'; remove.textContent = 'Eliminar dibujo';
-      remove.setAttribute('aria-label', `Eliminar ${name.textContent}, guardado el ${date.textContent}`);
-      remove.disabled = busy;
-      remove.addEventListener('click', () => deleteDrawings([item],
-        `¿Eliminar este dibujo de ${categoryName(item.category)}, guardado el ${date.textContent}?`,
-        'Se eliminó el dibujo de la galería y del dataset.'));
-      card.append(image, name, date, remove); grid.append(card);
-    });
-    $('gallery-pagination').hidden = pages <= 1;
-    $('gallery-prev').disabled = galleryPage === 0;
-    $('gallery-next').disabled = galleryPage >= pages - 1;
-    $('gallery-page').textContent = `Página ${galleryPage + 1} de ${pages}`;
-  }
-  $('gallery-category').addEventListener('change', () => { galleryPage = 0; renderGallery(); });
-  $('gallery-prev').addEventListener('click', () => { if (galleryPage > 0) { galleryPage--; renderGallery(); } });
-  $('gallery-next').addEventListener('click', () => {
-    if (!$('gallery-next').disabled) { galleryPage++; renderGallery(); }
-  });
   async function init() {
     draw();
     try { db=await database(); }

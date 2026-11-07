@@ -79,40 +79,11 @@
       <p class="help-text">Elige una categoría y un grosor, dibuja y guarda el resultado.</p>
       <canvas id="paint" width="512" height="512" aria-label="Lienzo para dibujar con mouse o dedo"></canvas>
       <div class="canvas-actions">
-        <div class="history-actions" role="group" aria-label="Historial de trazos">
-          <button type="button" id="undo" class="history-button" title="Deshacer" aria-label="Deshacer" disabled><span aria-hidden="true">↶</span></button>
-          <button type="button" id="redo" class="history-button" title="Rehacer" aria-label="Rehacer" disabled><span aria-hidden="true">↷</span></button>
-        </div>
+        <button type="button" id="undo">Deshacer último trazo</button>
         <button type="button" id="clear">Borrar lienzo</button>
         <button type="button" id="save" class="main-action" disabled>Guardar dibujo</button>
       </div>
     </section>
-  </section>
-  <section class="panel gallery-panel" aria-labelledby="gallery-title">
-    <div class="gallery-header">
-      <div>
-        <h2 id="gallery-title" class="section-title">Galería de dibujos guardados</h2>
-        <p class="help-text">Revisa tus dibujos y elimina los que no quieras incluir en el dataset.</p>
-      </div>
-      <div class="gallery-filter">
-        <label for="gallery-category">Filtrar por categoría</label>
-        <select id="gallery-category">
-          <option value="all">Todas las categorías</option>
-          <option value="llama">Llama</option>
-          <option value="sol">Sol</option>
-          <option value="montana">Montaña</option>
-          <option value="chakana">Chakana</option>
-          <option value="cuy">Cuy</option>
-        </select>
-      </div>
-    </div>
-    <p id="gallery-status" class="help-text" role="status">Cargando dibujos…</p>
-    <div id="gallery-grid" class="gallery-grid"></div>
-    <nav id="gallery-pagination" class="gallery-pagination" aria-label="Páginas de dibujos" hidden>
-      <button type="button" id="gallery-prev">← Anterior</button>
-      <span id="gallery-page"></span>
-      <button type="button" id="gallery-next">Siguiente →</button>
-    </nav>
   </section>
 </main>
 <script src="script.js" defer></script>
